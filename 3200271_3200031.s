@@ -11,45 +11,86 @@
 
 main:	
 
-	li $t1,0 				    # initialize result (result = 0) 
-			
-								# Print postfixInput prompt  
+		li $s2,20			# initialize max = 20
+		li $s3,$zero,0		# initialize pointer (result = 0) 
+		j loop
+loop:								# Print postfixInput prompt  
 		li $v0,4                # print_string syscall code = 4 
-		la	$a0, postfixInput	# load address of string to be printed into $a0
-		syscall				    # call operating system to perform print operation 
-	
+		la	$a0, postfixInput	# load postfix input prompt
+		syscall				    # call operating system to perform print operation 	
+		li $v0, 12 				# get users input 
+		syscall
+		move $s0, $v0				#Store input in $t0
 		
-
-	
-	
-	
-pop:
-		beq $t0,$zero,invalidPostfix	# if pointer == 0 
-		$a0,CRLF						# print error
-		li $v0,1
-        syscall	
+		jal calc				# call function calc
+		
+		
+pop:	move $v0,$t0
+		beq $t0,$zero,invalidPostfix	# if pointer == 0 throw invalid error
+		sub $sp,$sp,4					
+		sw $v0, ($sp)
+		addi $s1, $s1, -1 				# i--
+		jr $ra							# return to program
+		
 		   
-push:
+push:	
 
 
 calc:
+		bnq $s0,addSign,subTest 	#if input == '+' 
+				jal pop						#pop()
+				move $s1,$v0				# $s1= $v0
+				jal pop						#pop()
+				add $a0,$s1,$v0				#$a0 = $s1 + $v0
+				jal push					# push $a0
+				jr $ra					#return to loop
+				
+		subTest:
+				bnq $s0,minusSign,mulTest 	#if input == '-' 
+				jal pop						#pop()
+				move $s1,$v0				# $s1= $v0
+				jal pop						#pop()
+				sub $a0,$s1,$v0				#$a0 = $s1 - $v0
+				jal push					# push $a0
+				jr $ra						#return to loop
 
-exit:		li $v0,10   			#exit program
-			syscall
+		mulTest:
+				bnq $s0,mulSign,divTest   	#if input == '*' 
+				jal pop						#pop()
+				move $s1,$v0				# $s1= $v0
+				jal pop						#pop()
+				mul $a0,$s1,$v0				#$a0 = $s1 * $v0
+				jal push					# push $a0
+				jr $ra						#return to loop
+
+		divTest:
+				bnq $s0,divSign,divTest   	#if input == '/' 
+				jal pop						#pop()
+				move $s1,$v0				# $s1= $v0
+				jal pop						#pop()
+				beq $v0,$zero,divideByZeroError # goto divideByZeroError , print error and exit
+				div $a0,$s1,$v0				#$a0 = $s1 * $v0
+				jal push					# push $a0
+				jr $ra						#return to loop
+				
+
+
+
 invalidPostfix: 					# Print error
 		li $v0, 4					# print_string syscall code = 4 
-		la $a0, invalid  		 	# load address of string to be printed
+		la $a0, invalid  		 	# load invalid postfix prompt
 		syscall						# call operating system to perform print operation 	
 		j exit
 		
-error_divideByZero: 
+divideByZeroError: 
 									# Print error
 		li $v0, 4					# print_string syscall code = 4 
-		la $a0, divideByZeroError   # load address of string to be printed
+		la $a0, divideByZeroErrorMsg   # load divideByZeroError prompt
 		syscall						# call operating system to perform print operation 	
 		j exit
 
-
+exit:		li $v0,10   			#exit program
+			syscall
 # ------------------------------------------------------------------	
 .data
 
@@ -59,4 +100,9 @@ postfixInput: .asciiz "Postfix (input): "
 result: .asciiz "Postfix Evaluation (output): "
 evaluation: .asciiz "Postfix Evaluation: "
 invalid: .asciiz "Invalid Postfix"
-divideByZeroError: .asciiz "Divide by zero"
+divideByZeroErrorMsg: .asciiz "Divide by zero"
+addSign: .asciiz "+"
+subSign: .asciiz "-"
+mulSign: .asciiz "*"
+divSign: .asciiz "/"
+eqSign: .asciiz "="
